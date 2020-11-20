@@ -10,11 +10,15 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 library(tidyverse)
 library(here)
 library(lubridate)
+library(janitor)
+library(kableExtra)
+library(ggbeeswarm)
+
 bonanza_hares <- read_csv(here("data", "bonanza_hares.csv"))
 ```
 
 ### Introduction
-
+sites are black spruce, mature, and riparian
 
 ### Data & Methods
 
@@ -23,12 +27,112 @@ bonanza_hares <- read_csv(here("data", "bonanza_hares.csv"))
 
 #### Annual juvenile hare trap counts
 
+
 ```{r}
+# Some initial data wrangling and summarization:
 hares_j <- bonanza_hares %>% 
   filter(age == "j") %>% 
   mutate(date = mdy(date)) %>% 
   mutate(year = year(date)) %>% 
-  group_by(year) %>% 
-  count()
+  count(year)
+
+hares_j_table <- hares_j %>% 
+  summarise(
+    min_count = min(n), 
+    max_count = max(n), 
+    mean_count = mean(n), 
+    median_count = median(n)
+  ) 
+
 ```
 
+Annual snowshoe hares counted in traps over the study period was examined; sex and site are not included as variables here but should be examined moving forward. The absolute number of observed juvenile hares generally decreased throughout the sampling period (Figure 1). The maximum number observed (`r hares_j_table[2]`) occured in the first year of data collection, and the minimum observed (`r hares_j_table[1]`) occured in 2010, near the end of the study. Upon closer inspection, there appears to be potential multi-year cycle from relatively higher counts down to low counts that occurs a few times within this time period, with the peaks in hare counts getting progressively smaller. This  explains the difference between the mean (`r hares_j_table[3]`) and the median (`r hares_j_table[4]`)(Table 1). Important to note is the life stage of snowshoe hares observed in 2002 and 2009 was not recorded and thus the counts for those years are zero. Considering that these are absolute counts, future work should standardize these data to a catch per unit effort measure using number of traps set per year along with individuals trapped.
+
+**Table 1.** Descriptive statistics (min, max, mean, and median) for number of juvenile snowshoe hares trapped annually. Data: Kielland et al. (2017).
+```{r}
+hares_j_table %>% 
+  kable(col.names = c("Min Count", "Max Count", "Mean Count", "Median Count")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+
+```{r}
+#Data visualization:
+
+ggplot(hares_j, aes(x = year, y = n)) +
+  geom_col(fill = "turquoise3", 
+           width = .75) +
+  labs(x = "Year", y = "Count", title = "Annual juvenile snowshoe hare trap counts (1988-2012)") +
+  theme_minimal() 
+```
+
+**Figure 1.**Counts of juvenile snowshoe hares from traps from 1988 to 2012.  Data: Kielland et al. (2017).
+
+#### Differences in male and female juvenile hare weights across study sites
+
+```{r}
+hares_j_wts <- bonanza_hares %>% 
+  filter(age == "j")
+
+wts_table <- hares_j_wts %>% 
+  group_by(grid, sex) %>% 
+  summarise(
+    mean_weight = round(mean(weight, na.rm = FALSE), 2),  
+    median_weight = median(weight,na.rm = FALSE), 
+    sd_weight = round(sd(weight,na.rm = FALSE), 2),  
+    sample_size = n()
+    
+  )
+```
+
+```{r}
+sexes <- c(f = "Female", m = "Male")
+
+ggplot(hares_j_wts, aes(x = weight)) +
+  geom_histogram(bins = 30, 
+                 fill = "goldenrod") +
+  facet_wrap(~sex, labeller = labeller(sex = sexes)) +
+  theme_minimal() +
+  labs(x = "Weight (g)")
+```
+
+**Figure 2.** Histogram depicting the distribution of weights of male and female juvenile snowshoe hares. Individuals with no sex recorded at time of weighing are shown in the plot labelled 'NA'. Data: Kielland et al. (2017).
+
+```{r fig.align = "center"}
+site_labels <- c(bonbs = "Black Spruce Forest", bonmat = "Mature Forest", bonrip = "Riparan Forest")
+
+ggplot() +
+  geom_beeswarm(data = hares_j_wts, 
+                aes(x = sex, 
+                    y = weight), 
+                size = 3, 
+                alpha = 0.7, 
+                color = "thistle") +
+    facet_wrap(~grid, 
+               labeller = labeller(grid = site_labels)) +
+  scale_x_discrete(labels = c("Female", "Male", "N/A")) +
+  theme_minimal() +
+  geom_point(data = wts_table, 
+             aes(x = sex, y = mean_weight), 
+             size = 4, 
+             color = "gray28") +
+  geom_errorbar(data = wts_table, 
+                aes(x = sex, 
+                ymax = mean_weight + sd_weight, 
+                ymin = mean_weight - sd_weight), 
+                width = 0.1, 
+                color = "gray28") +
+  labs(x = "Sex", 
+       y = "Weight (g)")
+```
+**Figure 2.**
+
+
+
+
+**Table 2.** Descriptive statistics (mean, median, standard deviation, and sample size) for juvenile snowshoe hares at three sampling sites in Bonanza Creek Experimental Forest. Data: Kielland et al. (2017).
+```{r}
+wts_table %>% 
+  kable(col.names = c("Sex", "Site", "Mean weight (g)", "Median weight (g)", "Standard deviation", "Sample size")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
