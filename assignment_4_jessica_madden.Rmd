@@ -13,6 +13,8 @@ library(lubridate)
 library(janitor)
 library(kableExtra)
 library(ggbeeswarm)
+library(effsize)
+library(broom)
 
 bonanza_hares <- read_csv(here("data", "bonanza_hares.csv"))
 ```
@@ -46,8 +48,6 @@ hares_j_table <- hares_j %>%
 
 ```
 
-Annual snowshoe hares counted in traps over the study period was examined; sex and site are not included as variables here but should be examined moving forward. The absolute number of observed juvenile hares generally decreased throughout the sampling period (Figure 1). The maximum number observed (`r hares_j_table[2]`) occured in the first year of data collection, and the minimum observed (`r hares_j_table[1]`) occured in 2010, near the end of the study. Upon closer inspection, there appears to be potential multi-year cycle from relatively higher counts down to low counts that occurs a few times within this time period, with the peaks in hare counts getting progressively smaller. This  explains the difference between the mean (`r hares_j_table[3]`) and the median (`r hares_j_table[4]`)(Table 1). Important to note is the life stage of snowshoe hares observed in 2002 and 2009 was not recorded and thus the counts for those years are zero. Considering that these are absolute counts, future work should standardize these data to a catch per unit effort measure using number of traps set per year along with individuals trapped.
-
 **Table 1.** Descriptive statistics (min, max, mean, and median) for number of juvenile snowshoe hares trapped annually. Data: Kielland et al. (2017).
 ```{r}
 hares_j_table %>% 
@@ -56,7 +56,7 @@ hares_j_table %>%
 ```
 
 
-```{r}
+```{r fig.align = "center"}
 #Data visualization:
 
 ggplot(hares_j, aes(x = year, y = n)) +
@@ -66,9 +66,11 @@ ggplot(hares_j, aes(x = year, y = n)) +
   theme_minimal() 
 ```
 
-**Figure 1.**Counts of juvenile snowshoe hares from traps from 1988 to 2012.  Data: Kielland et al. (2017).
+***Figure 1.**Counts of juvenile snowshoe hares from traps from 1988 to 2012.  Data: Kielland et al. (2017).*
 
-#### Differences in male and female juvenile hare weights across study sites
+Annual snowshoe hares counted in traps over the study period was examined; sex and site are not included as variables here but should be examined moving forward. The absolute number of observed juvenile hares generally decreased throughout the sampling period (Figure 1). The maximum number observed (`r hares_j_table[2]`) occured in the first year of data collection, and the minimum observed (`r hares_j_table[1]`) occured in 2010, near the end of the study. Upon closer inspection, there appears to be potential multi-year cycle from relatively higher counts down to low counts that occurs a few times within this time period, with the peaks in hare counts getting progressively smaller. This  explains the difference between the mean (`r hares_j_table[3]`) and the median (`r hares_j_table[4]`)(Table 1). Important to note is the life stage of snowshoe hares observed in 2002 and 2009 was not recorded and thus the counts for those years are zero. Considering that these are absolute counts, future work should standardize these data to a catch per unit effort measure using number of traps set per year along with individuals trapped.
+
+#### Comparison of male and female juvenile hare weights
 
 ```{r}
 hares_j_wts <- bonanza_hares %>% 
@@ -77,15 +79,17 @@ hares_j_wts <- bonanza_hares %>%
 wts_table <- hares_j_wts %>% 
   group_by(grid, sex) %>% 
   summarise(
-    mean_weight = round(mean(weight, na.rm = FALSE), 2),  
-    median_weight = median(weight,na.rm = FALSE), 
-    sd_weight = round(sd(weight,na.rm = FALSE), 2),  
+    mean_weight = round(mean(weight, na.rm = TRUE), 2),  
+    median_weight = median(weight,na.rm = TRUE), 
+    sd_weight = round(sd(weight,na.rm = TRUE), 2),  
     sample_size = n()
     
   )
 ```
 
-```{r}
+
+
+```{r fig.align = "center"}
 sexes <- c(f = "Female", m = "Male")
 
 ggplot(hares_j_wts, aes(x = weight)) +
@@ -96,7 +100,7 @@ ggplot(hares_j_wts, aes(x = weight)) +
   labs(x = "Weight (g)")
 ```
 
-**Figure 2.** Histogram depicting the distribution of weights of male and female juvenile snowshoe hares. Individuals with no sex recorded at time of weighing are shown in the plot labelled 'NA'. Data: Kielland et al. (2017).
+***Figure 2.** Histogram depicting the distribution of weights of all male and female juvenile snowshoe hares. Weights of hares captured in live-traps were measured in grams for male, female, and unsexed hares. Individuals with no sex recorded at time of weighing are shown in the plot labelled 'NA'. Data: Kielland et al. (2017).*
 
 ```{r fig.align = "center"}
 site_labels <- c(bonbs = "Black Spruce Forest", bonmat = "Mature Forest", bonrip = "Riparan Forest")
@@ -125,14 +129,66 @@ ggplot() +
   labs(x = "Sex", 
        y = "Weight (g)")
 ```
-**Figure 2.**
+***Figure 3. Juvenile showshoe hares weights at three different sites witin the Bonanza Creek Experimental Forest.** Weights of hares captured in live-traps were measured in grams for male, female, and unsexed hares. Points indicate individual observations, mean is indicated by the black point, and error bars indicate the standard deviation from the mean. Data: Kielland et al. (2017).*
 
+In a comparison of the overall distribution of body weights (g) of male and female snowshoe hares across all study sites, female hare weights are normally distributed while male hare weights appear to have a bimodal distribution (Figure 2). Expanding this examination of hare weights to look at differences between the sexes at the three study sites, the means across sites appear similar, and average male hare weight is slightly higher than the average female hare weight (Figure 3).  
 
-
-
-**Table 2.** Descriptive statistics (mean, median, standard deviation, and sample size) for juvenile snowshoe hares at three sampling sites in Bonanza Creek Experimental Forest. Data: Kielland et al. (2017).
 ```{r}
-wts_table %>% 
-  kable(col.names = c("Sex", "Site", "Mean weight (g)", "Median weight (g)", "Standard deviation", "Sample size")) %>% 
+hares_j_sex_wts <- bonanza_hares %>% 
+  filter(age == "j") %>% 
+  filter(sex %in% c("f", "m"))
+
+sex_wts_table <- hares_j_sex_wts %>% 
+  group_by(sex) %>% 
+  summarise(mean_weight = round(mean(weight, na.rm = TRUE), 2),
+            sd_weight = round(sd(weight,na.rm = TRUE), 2),
+            sample_size = n())
+```
+
+***Table 1.** Descriptive statistics (mean, standard deviation, and sample size) for male and female juvenile snowshoe hares in Bonanza Creek Experimental Forest. Data: Kielland et al. (2017).*
+```{r}
+sex_wts_table %>% 
+  kable(col.names = c("Sex", "Mean weight (g)", "Standard deviation (g)", "Sample size")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE)
 ```
+
+#### Difference in male and female snowshoe hare weights
+
+```{r}
+# T-test code: 
+
+# Pull vectors of flipper lengths for male & female snowshoe hares
+
+m_hares <- bonanza_hares %>% 
+  filter(age == "j", sex == "m") %>% 
+  pull(weight)
+
+f_hares <- bonanza_hares %>% 
+  filter(age == "j", sex == "f") %>% 
+  pull(weight)
+
+# Plot histograms & qq-plots to check assumptions
+hist(m_hares) # Looks normal
+qqnorm(m_hares) # Relatively linear
+hist(f_hares) # Looks normal
+qqnorm(f_hares) # Relatively linear
+
+# Overall: assumptions of normality hold, & sample size additionally >> Central Limit Theorem (means will be normally distributed). Two-sample t-test OK for means comparison! 
+
+# Run the t-test:
+hares_ttest <- t.test(m_hares, f_hares)
+
+# Get the tidy model results to call outputs in-line: 
+hares_ttest_tidy <- tidy(hares_ttest)
+
+# Get the means & SDs for each: 
+male_mean <- mean(m_hares)
+female_mean <- mean(f_hares)
+male_sd <- sd(m_hares)
+female_sd <- sd(f_hares)
+
+# Get the effect size: 
+hares_effsize <- cohen.d(m_hares, f_hares, na.rm = TRUE)
+```
+
+
